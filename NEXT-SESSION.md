@@ -1,7 +1,95 @@
 # living-memory-engine — NEXT SESSION (warp point)
 
-> Read THIS first to resume. Side project (not HomeLog). Last big session: **2026-07-20 (Qwen Cloud hackathon — shipped a live submission)**. Prior: 2026-06-05 (prospective-resolution + Spec 1A attributed multi-person memory), 2026-06-03 (self-state grounding), 2026-06-02 (web pivot + ambient oracle).
+> Read THIS first to resume. Side project (not HomeLog). Last big session: **2026-08-09 (LME MCP 0.1.0 → 0.1.1 PUBLISHED to npm; article live; see the dated block below — it has a deadline in it)**. Prior: 2026-08-08/09 (DoD-2 corrected into four obstacles). Prior: 2026-07-20 (Qwen Cloud hackathon — shipped a live submission). Prior: 2026-06-05 (prospective-resolution + Spec 1A attributed multi-person memory), 2026-06-03 (self-state grounding), 2026-06-02 (web pivot + ambient oracle).
 > One-line: a **living-memory engine** — talk forever; a TS engine decays/consolidates/crystallizes instead of stuffing context. Star is **เชียงใหม่**, a Chiang-Mai entity that senses the real world (Open-Meteo) and remembers across sessions. **Default profile = Qwen Cloud; deployed live on Alibaba Cloud.** Local Ollama still an option.
+
+## ⚡ 2026-08-11 — Remote LME MCP EXISTS (read this before the dated block)
+
+The strategy moved: HN/adoption push was demoted mid-day (advisor ledger A57–A65). **lme-remote** — a hosted
+streamable-HTTP MCP serving the real `~/.living-memory/brain.json` behind a RevenueCat entitlement gate — was
+built, adversarially reviewed, and **passed its live DoD the same day** (phone retrieved the Mac's memory
+world; 403→promotional-grant→200 through a public tunnel). It lives in its **own repo**
+`side-projects/lme-remote/` (spec/plan/runbook inside; 20/20 tests; HEAD `a4e38f3`), permanent hostname
+**https://lme.viibe.to** (Cloudflare named tunnel `lme`). Commercial boundary settled: local stdio = free/OSS
+forever · hosted continuity = paid. ONS (anonymous mortal-memory trial) is spec'd as a seam, NOT built —
+founder+GPT scoping round required first. Server+tunnel processes are still session-bound on the Mac
+(hostname survives restarts). Durable hosting ships **together with the paywall** — founder ruling, not a
+standalone task. The freeze-lift list below still stands, and DoD-3.9 gains urgency: hosted mode makes the
+concurrency issue real (a per-brain serializer exists in lme-remote; cross-process locking belongs upstream).
+
+## ⏰ DATED — DO THIS WHEN THE FREEZE LIFTS: **2026-08-12 04:00 GMT+7**
+
+*Written 2026-08-09 22:00 because the next LME session will probably open on the 11th or 12th, in the
+middle of HomeLog/XPRIZE work, and will not think to ask. This block is the eager channel; living-memory
+is the lazy one and will not surface a dated commitment on its own (that is A32, decided by us).*
+
+**`@nature-labs/lme-mcp@0.1.1` is published and live on npm, and its source has no home in git.**
+That is the debt. When the freeze lifts:
+
+1. Bring `~/_dev/lme-release-0.1/lme-mcp/` back into this repo (it is a detached worktree at `2be3605`)
+2. Commit · merge · tag **`lme-mcp-v0.1.0`** and **`lme-mcp-v0.1.1`**
+3. Push the working-tree doc fixes already made here: `CLAUDE.md` + `AGENTS.md` (the OpenRouter rule was
+   wrong and is corrected), `LME_MCP_Plan.md` §3 still says OpenRouter has no embedding models — it has 31
+4. File the **DoD-3.9 concurrency** issue publicly (first thing, per the original plan)
+
+**Do not delete `~/_dev/lme-release-0.1`.** It is the only copy of the published source.
+
+## ▶ ADOPTION IS NOT BLOCKED BY THE FREEZE — do not wait for the 12th
+
+Shipped 2026-08-09 and already public: **npm 0.1.1** · the article
+**https://www.v1b3.io/writing/i-gave-an-agent-a-package-name/** (live). Verified: 3 clients (Claude Code,
+Hermes 0.20.0, Codex) · 5 embedding providers (Qwen Cloud, llama.cpp, Ollama, OpenRouter, mock).
+
+**What is missing is one thing only: a stranger who is not us.** Nothing about that is frozen.
+
+- Founder's read, 2026-08-09: **Hacker News / Product Hunt**, not LinkedIn — LinkedIn measured 569
+  impressions and 40 followers over four weeks, and `Followers gained from this post = 0` on every post.
+  The most technical post did worst (25 impressions). It is a diary with ~50 readers, not a channel.
+- Squish precedent (Notion Turn 6, 2026-07-06) armed **six** surfaces in one day: free tier · ungated
+  skill · pre-wired fork · Telegram · npm · upstream PR. LME has armed exactly one (npm).
+- Squish's own lesson, worth stealing: *a gated skill vanishes exactly when the MCP is absent* — so if a
+  skill gets built for LME, ship it ungated.
+- Upstream PR to Hermes is precedented (`NousResearch/hermes-agent#59460`) **but it has sat reviewed and
+  unmerged since 2026-07-16** — month-scale latency. Do not stack LME onto that PR; it would reset its review.
+
+**Do not let HomeLog/XPRIZE crowd this out silently.** If a session opens and only sees HomeLog, that is
+the failure mode this block exists to prevent.
+
+## The open question that decides whether hosted/Remote MCP is worth building
+
+Not "does the spec want it" — stdio is a current standard transport in MCP revision 2026-07-28 and is not
+deprecated. Claude's *consumer* surfaces (web/Desktop/mobile) take remote connectors only; Claude Code,
+Hermes and Codex all take stdio, which is what shipped.
+
+The real question is **"how would we ever know if someone used it?"** Squish could answer that — 157 MCP
+requests, 45 real tool executions — because it was hosted. LME is local by design and reports nothing;
+`Telemetry: none` is in the README as a feature. Decide that question before building transport.
+
+---
+
+## Previous session context — 2026-08-09 (LME MCP shipping day)
+
+**Where LME actually stands** (corrected late 2026-08-08 in a cross-session exchange with the `homelog-day-53` session — full write-up: `lme-mcp/FIELD-TEST.md`, ledger `advisor-inbox.md` A51–A56, Notion Agent Log 2026-08-09):
+
+"Agent reaches for memory" is **four obstacles**, not one — **(a) delivery** ✅ n=2 · **(b) matchability** 🟡 literal matches only · **(c) motivation** 🔴 **no data, nobody has touched this** · **(d) integration** 🆕 n=1. **DoD-2 is a claim about (c); W2 moved (a)+(b).** So do **not** open the day by rewording tool descriptions or `instructions` — if the blocker is (c)/(d), that is the wrong layer.
+
+**Today's three blocks** (all in `side-projects/lme-chat/` — a *separate repo, NOT under the freeze*, so it commits freely; `memory-engine` stays working-tree-only until **2026-08-12 04:00**):
+
+1. **Block 1 — harvest, no new features.** `src/lib/ledger.ts` already writes a full `TurnRecord` every turn (`fedSystem`/`fedInject`/`fedTailCount`, `usedIds`+`availableCount`, `proposed`/`created`/`dropped`, model+prompt stamps). Export the ~339 turns already sitting in the founder's browser and plot four curves:
+   - `fedInject` **over time** ← the one that matters: flat across 339 turns while the conversation grows to ~203k tokens = *bounded*, measured
+   - `availableCount` **growth curve** ← if it grows linearly, this is an append log with extra steps. **Be willing to see that.**
+   - `usedIds / availableCount` (retrieval sharpness) · `created / proposed` (dedup rate, ~30–50% in the wild)
+   - **Every one of these is computable from metadata alone — no message content needs reading.** The founder's thread is personal; keep it that way, and the charts stay shareable.
+2. **Block 2 — quality, using the criterion agreed last night.** Three mechanical checks per suspect turn: *(1) is the answer in the store · (2) was it already in `fedInject` · (3) was the reply wrong.* `(1)✅(2)❌(3)✅` = **retrieval miss** · `(1)✅(2)✅(3)✅` = **(d) integration miss**. First time engine-fault and model-fault can be told apart.
+3. **Block 3 — make the felt claim falsifiable.** "Multi-layer linked conversation got better" is **join**, not recall: ask something needing two facts stated ~200 turns apart and never together. Answers = something a context window can't do. Doesn't = the felt gain may be UX/flow, which is also worth knowing.
+
+**Founder decision 2026-08-09 01:20:** the existing 339-turn thread is too personal to be the research corpus → a **new entity** (MDS-ecosystem-flavoured, or just easy to talk to) and research in **one pass at ~500 turns**. Block 1 still runs on the old thread for free (metadata only); Blocks 2–3 wait for the new entity.
+
+**Headline number, and its trap:** `~203,431 tok conversation → ~2,710 tok fed` = **1.33%, 75×**. That proves **bounded**, *not* **good** — a system that simply truncates scores better. It only means something paired with a quality axis holding across the 339 turns.
+
+**Still open (not today's blocks):** ~~`lme-mcp/` is untracked~~ → **resolved 2026-08-09**: shipped from a third detached worktree, published to npm; provenance debt now tracked in the dated block at the top · 5 pre-registered DoD-2 trials unrun, and they must run in a workspace with **no eager memory** (L4) · A38 CAS/append-only before supersede — hit twice for real on 2026-08-08, and a third time on 08-09 (4 of 19 stored memories carry tool-envelope markup that cannot be edited, only forgotten+re-added) · after 2026-08-12 04:00, file the DoD-3.9 issue first.
+
+---
 
 ## ✅ 2026-07-20 — Qwen Cloud hackathon (MemoryAgent track) — SHIPPED a live submission
 Repo **renamed `neural-chat` → `living-memory-engine`** (public, Apache-2.0; GitHub redirects old links). All hackathon assets in one bucket: **`docs/superpowers/hackathon/`** — start at `codex-brief.md`. What landed (all pushed to main, engine 92 + web 74 tests green, tsc 0, zero engine edits):

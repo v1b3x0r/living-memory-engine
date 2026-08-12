@@ -62,7 +62,7 @@ cd engine && npm run build     # tsc -p tsconfig.build.json → dist/   (REQUIRE
 - **cwd drift is real:** use `git -C <repo-root> …` for git, and `cd web && …` (or `cd engine && …`) explicitly for vitest/tsc. Running vitest from the repo root globs the wrong tests with the wrong env.
 - **`web/vite.config.ts` must `import { defineConfig } from 'vitest/config'`** (not `'vite'`) for `test.environment: 'happy-dom'` to apply — tests use `localStorage`; storage/engine tests also rely on `fake-indexeddb`.
 - **Model names are discovered, never hardcoded** — `lib/models.ts` reads `/v1/models`; profile entries in `config.ts` are only fallbacks. Salience uses z-scores, not absolute thresholds. Keep this LOW-hardcode discipline.
-- **OpenRouter has zero embedding models** — never embed there; pair it with a local embedder.
+- **OpenRouter DOES have embedding models** (corrected 2026-08-09; it had none when this rule was written). `GET /api/v1/embeddings/models` lists 31, some free — verified end-to-end through lme-mcp with `nvidia/nemotron-3-embed-1b:free` at 2048 dims. Check the live list before assuming a provider's capabilities; vendor gaps expire.
 - **Ollama CORS** is open for `localhost:5173` by default (no `OLLAMA_ORIGINS` needed).
 - **devlog**: in dev, `devlog(tag, data)` (`lib/devlog.ts`) POSTs to a Vite middleware that appends JSON lines to `web/.debug/dev.log` (gitignored, dev-only). Read that file to see the **real prompt fed to the LLM** (`tag: 'last-fed'`) plus `observe`/`greet` — faster than the on-screen pane. Restart `npm run dev` after editing `vite.config.ts`.
 
