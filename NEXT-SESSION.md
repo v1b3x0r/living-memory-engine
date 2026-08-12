@@ -25,8 +25,13 @@ pushed, DoD-3.9 filed as [issue #3](https://github.com/v1b3x0r/living-memory-eng
 `LME_MCP_Plan.md` §3 no longer contains the OpenRouter erratum (already fixed in place; the file
 stays local-only via `.git/info/exclude`, along with the other private/superseded strata).
 **New the same day:** Claude Code plugin repo `v1b3x0r/living-memory-plugin` (`living-memory`,
-validate --strict ✔, npm smoke ✔) — marketplace submission via platform.claude.com/plugins/submit
-pending founder login. `~/_dev/lme-release-0.1` kept, per the rule below.
+validate --strict ✔, npm smoke ✔, real plugin-load proven via --plugin-dir AND marketplace
+add+install) — **SUBMITTED ~21:05, pending review** at platform.claude.com/plugins/submissions.
+Cowork checkbox was mis-checked (hand slip, no edit button); repo/README claim Claude Code only —
+if rejected, just file a New submission. Field-learned: Cowork runs sessions in a cloud sandbox, so
+a stdio plugin there gets an empty mortal brain → cloud surfaces belong to the remote connector
+(plugin v0.2 adds the http entry WHEN paywall+launchd ship together, per standing ruling).
+`~/_dev/lme-release-0.1` kept, per the rule below.
 
 ## ⏰ DATED — DO THIS WHEN THE FREEZE LIFTS: **2026-08-12 04:00 GMT+7**
 
