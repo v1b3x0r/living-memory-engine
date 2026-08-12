@@ -1,0 +1,68 @@
+{
+  "name": "@nature-labs/lme-mcp",
+  "version": "0.1.1",
+  "description": "Living Memory MCP — a persistent memory store for coding agents, over stdio. Facts survive across sessions and processes; retrieval is semantic (MMR), not string matching. Pre-alpha.",
+  "license": "Apache-2.0",
+  "author": "nature-labs",
+  "type": "module",
+  "bin": {
+    "lme-mcp": "dist/server.js"
+  },
+  "main": "dist/server.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/v1b3x0r/living-memory-engine.git"
+  },
+  "homepage": "https://github.com/v1b3x0r/living-memory-engine",
+  "bugs": {
+    "url": "https://github.com/v1b3x0r/living-memory-engine/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "memory",
+    "agent-memory",
+    "claude",
+    "claude-code",
+    "cursor",
+    "llm",
+    "long-term-memory"
+  ],
+  "engines": {
+    "node": ">=20.12.0"
+  },
+  "files": [
+    "dist",
+    "src",
+    "test",
+    "vendor",
+    "tsconfig.json",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "start": "node dist/server.js",
+    "smoke": "node test/smoke.mjs",
+    "test:embed-failure": "node test/embed-failure.mjs",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build && npm run smoke"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@nature-labs/living-memory-engine": "file:vendor/nature-labs-living-memory-engine-0.0.0.tgz",
+    "zod": "^3.23.8"
+  },
+  "bundleDependencies": [
+    "@nature-labs/living-memory-engine"
+  ],
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
