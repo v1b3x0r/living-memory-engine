@@ -17,6 +17,17 @@ founder+GPT scoping round required first. Server+tunnel processes are still sess
 standalone task. The freeze-lift list below still stands, and DoD-3.9 gains urgency: hosted mode makes the
 concurrency issue real (a per-brain serializer exists in lme-remote; cross-process locking belongs upstream).
 
+## ✅ EXECUTED 2026-08-12 evening — the freeze-lift block below is DONE
+
+All four items landed the day the freeze lifted: lme-mcp@0.1.1 source is in this repo (tagged
+`lme-mcp-v0.1.1`; v0.1.0 has no surviving snapshot so it was not tagged), CLAUDE/AGENTS doc fixes
+pushed, DoD-3.9 filed as [issue #3](https://github.com/v1b3x0r/living-memory-engine/issues/3).
+`LME_MCP_Plan.md` §3 no longer contains the OpenRouter erratum (already fixed in place; the file
+stays local-only via `.git/info/exclude`, along with the other private/superseded strata).
+**New the same day:** Claude Code plugin repo `v1b3x0r/living-memory-plugin` (`living-memory`,
+validate --strict ✔, npm smoke ✔) — marketplace submission via platform.claude.com/plugins/submit
+pending founder login. `~/_dev/lme-release-0.1` kept, per the rule below.
+
 ## ⏰ DATED — DO THIS WHEN THE FREEZE LIFTS: **2026-08-12 04:00 GMT+7**
 
 *Written 2026-08-09 22:00 because the next LME session will probably open on the 11th or 12th, in the
