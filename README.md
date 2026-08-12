@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/lme-banner.jpg" width="720" alt="LME — Memory that follows your agents. Remember. Understand. Grow." />
+</p>
+
 # Living Memory Engine
 
 A TypeScript memory substrate for agents that remember like a mind, not a log — decay, consolidation, crystallization, MMR retrieval. Proven by เชียงใหม่ (Chiang Mai), a city-entity that senses the real world and remembers you across sessions. Runs on Qwen Cloud.
