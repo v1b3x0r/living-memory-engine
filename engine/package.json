@@ -1,8 +1,31 @@
 {
   "name": "@nature-labs/living-memory-engine",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
+  "description": "A TypeScript memory engine for agents that remember like a mind, not a log — Ebbinghaus decay, consolidation, crystallization, MMR retrieval. Composes a small working context per turn instead of replaying the whole conversation. Zero runtime dependencies, ports & adapters, ESM.",
   "license": "Apache-2.0",
+  "author": "nature-labs",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/v1b3x0r/living-memory-engine.git",
+    "directory": "engine"
+  },
+  "homepage": "https://viibe.to/living-memory",
+  "bugs": { "url": "https://github.com/v1b3x0r/living-memory-engine/issues" },
+  "keywords": [
+    "memory",
+    "agent-memory",
+    "llm",
+    "context-window",
+    "context-engineering",
+    "mmr",
+    "ebbinghaus",
+    "forgetting-curve",
+    "consolidation",
+    "embeddings",
+    "ai-agents",
+    "typescript"
+  ],
+  "engines": { "node": ">=20" },
   "type": "module",
   "main": "dist/src/index.js",
   "types": "dist/src/index.d.ts",
@@ -10,7 +33,7 @@
     ".": { "types": "./dist/src/index.d.ts", "default": "./dist/src/index.js" },
     "./provider": { "types": "./dist/provider/adapters.d.ts", "default": "./dist/provider/adapters.js" }
   },
-  "files": ["dist"],
+  "files": ["dist", "NOTICE"],
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",

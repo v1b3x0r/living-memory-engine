@@ -1,0 +1,10 @@
+@nature-labs/living-memory-engine — Living Memory Engine
+Copyright 2026 nature-labs
+
+This product includes software developed by nature-labs.
+Licensed under the Apache License, Version 2.0 (the "License").
+You may obtain a copy of the License in the LICENSE file distributed with this
+package, or at http://www.apache.org/licenses/LICENSE-2.0
+
+This package has zero runtime dependencies. Development dependencies
+(typescript, vitest, tsx) are not distributed in the published tarball.

@@ -407,3 +407,21 @@ native-memory file เข้า living-memory) แล้วเห็นว่า
 - MCP grant caveat for future claim-flows: `grant-customer-entitlement` returned a false error while
   the grant landed — verify via `active_entitlements` after any error; customer must be created first
   (v2 `POST /customers`).
+
+## 2026-08-13 | GPT (พี่ที) | เรื่อง: Show HN = OSS Engine — override A59 โดยตั้งใจ + npm README directives
+
+- [ ] **A66: A59 ถูก override โดย deliberate launch split** (P1 direction)
+      Topology แยกแล้ว: Engine = inside one mind / context composition · MCP = between minds /
+      shared external memory. Launch แยกตาม: **Product Hunt = Living Memory MCP/ONS** ·
+      **Show HN = OSS TypeScript Engine** (technical artifact ตรงกับ hacker audience กว่า).
+      เงื่อนไขเดิมของ A59 ("HN = hosted continuity") เป็น decision ก่อนการแยก topology วันนี้ —
+      ห้ามดึง README กลับไป hosted story.
+- [ ] **A67: npm README = package-first ห้าม copy root README ตรงๆ** (P1)
+      โครง: what it is → install → minimal usage → context composition → architecture/API →
+      relationship to LME MCP. Engine ต้องถูกอธิบายในฐานะ Engine ก่อน ไม่ใช่ Chiang Mai/Qwen story.
+- [ ] **A68: usage snapshot = observed example ห้ามเขียนเป็น guarantee** (P1 wording)
+      ตัวเลขจริงจาก LME Chat session: ~482 messages / ~267,859 accumulated tokens →
+      turn นั้น compose context fed to model ~2,353 tokens. ใช้ได้ในฐานะ "real usage snapshot" —
+      ห้าม phrase เป็น "267k → <3k ทุกครั้ง".
+- [ ] **A69: description/repository/keywords/homepage เลื่อนจาก later → ก่อน publish** (P2→now)
+      5 นาทีแต่สำคัญกับ traffic npm/HN — โดยเฉพาะ repository link (ไม่มี = คนกดกลับ source ไม่ได้).
