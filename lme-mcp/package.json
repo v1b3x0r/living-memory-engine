@@ -1,7 +1,8 @@
 {
   "name": "@nature-labs/lme-mcp",
-  "version": "0.1.1",
-  "description": "Living Memory MCP — a persistent memory store for coding agents, over stdio. Facts survive across sessions and processes; retrieval is semantic (MMR), not string matching. Pre-alpha.",
+  "mcpName": "to.viibe/living-memory",
+  "version": "0.1.2",
+  "description": "Living Memory MCP \u2014 a persistent memory store for coding agents, over stdio. Facts survive across sessions and processes; retrieval is semantic (MMR), not string matching. Pre-alpha.",
   "license": "Apache-2.0",
   "author": "nature-labs",
   "type": "module",
