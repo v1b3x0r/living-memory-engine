@@ -16,7 +16,7 @@ Living Memory Engine (LME) is a **Model Context Protocol (MCP) memory server**. 
 
 - **Website:** https://viibe.to/living-memory/
 - **Remote MCP endpoint:** `https://lme.viibe.to/mcp` (Streamable HTTP, OAuth 2.1 with dynamic client registration)
-- **Free 24-hour room:** no signup — `POST https://lme.viibe.to/ons/new` returns a ready MCP URL
+- **Free room:** no signup — `POST https://lme.viibe.to/ons/new` returns a ready MCP URL
 - **Local stdio server:** [`@nature-labs/lme-mcp`](https://www.npmjs.com/package/@nature-labs/lme-mcp) on npm (open source, this repo)
 - **Agent guide:** [SKILL.md](https://viibe.to/living-memory/skills/living-memory/SKILL.md) · [llms.txt](https://viibe.to/llms.txt)
 
@@ -46,14 +46,14 @@ claude mcp add --transport http living-memory https://lme.viibe.to/mcp
 
 > It's 2026. MCP client support changes faster than READMEs do — ask your agent whether your client supports remote MCP today.
 
-**Free 24-hour room, no signup** — for trying the whole loop, or for clients without OAuth:
+**Free room, no signup** — for trying the whole loop, or for clients without OAuth:
 
 ```bash
 curl -X POST https://lme.viibe.to/ons/new
 # → {"url": "https://lme.viibe.to/t/<token>/mcp", "expiresAt": "..."}
 ```
 
-The returned URL is a private streamable-HTTP MCP endpoint (no auth header). It expires 24 hours after mint and its data is then deleted. A room differs from a world by how long it lasts, not by what it can do.
+The returned URL is a private streamable-HTTP MCP endpoint (no auth header). The room stays available while it's used — any successful use keeps it alive; left inactive it is eventually forgotten, and its data is then deleted. A room differs from a world by how long it lasts, not by what it can do.
 
 ### Local — stdio, open source
 
@@ -83,7 +83,7 @@ The authenticated hosted world has all eleven tools. A free room has the memory 
 
 | | Free room | World |
 |---|---|---|
-| Lifetime | 24 hours, then deleted | Persists |
+| Lifetime | Stays while used; forgotten after inactivity | Persists |
 | Signup | None — mint a URL | OAuth sign-in, [$9/month](https://viibe.to/living-memory/keep/) |
 | Memory + handoff | Yes — full loop | Yes |
 | Client keys (`client_mint`) | No | Yes — 90-day revocable leases |
