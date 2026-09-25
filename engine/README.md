@@ -112,17 +112,19 @@ The LLM never receives the whole history. Identity is not written in the system 
 
 ## API pointers
 
-- `new MemoryEngine(deps)` — deps are four ports + clock/random/policy. No IO inside.
+- `new MemoryEngine(deps)` — deps are four ports + clock/random/policy, plus an optional host-owned `telemetry` port. No IO inside.
 - `engine.ingestUser(text, image?, speaker?)` / `engine.ingestModel(text)` — record the exchange.
 - `engine.retrieve(query)` — compose the working context (`selfTier`, `episodic`, `prospective`, `tail`).
 - `formatInjection(ctx)` — render it as the system-side context block.
 - `engine.tick()` — run the memory lifecycle.
+- `TelemetryPort` is an optional fail-open observability boundary; the engine does not select or configure a telemetry provider.
 - Primitives are exported if you want to build your own loop: `decay`, `reinforce`, `merge`, `prune`, `detectPatterns`, `cosineSimilarity`, `mmrSearch`, `placeMemory`, `resolvePerson`.
 
 | Port | Shape | Typical adapter |
 |---|---|---|
 | `StoragePort` | `load()/save()` one JSON-serializable snapshot | a file, IndexedDB, SQLite row |
 | `ChatPort` | `stream`, `extract`, `describeImage`, `summarizePattern` | any LLM (see `./provider`) |
+| `TelemetryPort` | `capture(event)` | optional host-owned analytics; fail-open |
 | `EmbedPort` | `embed(text) → number[] \| null` | any embedding model; `null` = backfill later |
 | `Clock` / `Random` | `now()` / seeded RNG | injectable ⇒ every behavior is deterministic under test |
 

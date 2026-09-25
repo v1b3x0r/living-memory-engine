@@ -2,7 +2,7 @@ import {
   DEFAULT_CONFIG, type EngineConfig, type Message, type InjectionContext, type EpisodicMemory,
 } from './types.js';
 import type {
-  StoragePort, EmbedPort, ChatPort, Clock, Random, CrystallizePolicy,
+  StoragePort, EmbedPort, ChatPort, Clock, Random, CrystallizePolicy, TelemetryEvent, TelemetryPort,
 } from './ports.js';
 import { mmrSearch, cosineSimilarity } from './vector.js';
 import { decay, reinforce, merge, prune, detectPatterns, decayProspective, abandonWeakProspective, capProspective, mergeSelfFacets } from './consolidation.js';
@@ -15,14 +15,43 @@ export interface EngineDeps {
   storage: StoragePort; embed: EmbedPort; chat: ChatPort;
   clock: Clock; random: Random; policy: CrystallizePolicy;
   config?: Partial<EngineConfig>; systemPrompt?: string;
+  /** Optional host-owned observability. Capture failures must not affect engine state. */
+  telemetry?: TelemetryPort;
 }
 
 let counter = 0;
 const uid = (p: string) => `${p}_${Date.now().toString(36)}_${(counter++).toString(36)}`;
 
+function captureTelemetry(deps: EngineDeps, sessionId: string | undefined, event: Omit<TelemetryEvent, 'sessionId'>): void {
+  if (!deps.telemetry || !sessionId) return;
+  try {
+    const result = deps.telemetry.capture({ ...event, sessionId });
+    if (result) void Promise.resolve(result).catch(() => {});
+  } catch {
+    // Observability must never affect engine state transitions.
+  }
+}
+
+function captureRespondCompleted(
+  deps: EngineDeps, sessionId: string | undefined, startedAt: number | undefined,
+  responseLength: number, hasImage: boolean,
+): void {
+  if (!deps.telemetry || startedAt === undefined) return;
+  let durationMs = 0;
+  try { durationMs = deps.clock.now() - startedAt; } catch { /* fail-open */ }
+  captureTelemetry(deps, sessionId, {
+    name: 'respond_completed',
+    properties: { duration_ms: durationMs, response_length: responseLength, has_image: hasImage },
+  });
+}
+
 export class MemoryEngine {
   private cfg: EngineConfig;
-  constructor(private d: EngineDeps) { this.cfg = { ...DEFAULT_CONFIG, ...d.config }; }
+  private readonly sessionId: string | undefined;
+  constructor(private d: EngineDeps) {
+    this.cfg = { ...DEFAULT_CONFIG, ...d.config };
+    this.sessionId = d.telemetry ? uid('session') : undefined;
+  }
 
   async ingestUser(
     text: string,
@@ -43,6 +72,7 @@ export class MemoryEngine {
       id: uid('i'), msgId: msg.id, source: speaker ?? null, source_type: 'user', role: 'user', ts: now,
     });
     await this.d.storage.save(snap);
+    if (image) captureTelemetry(this.d, this.sessionId, { name: 'image_ingested', properties: { mime: image.mime } });
   }
 
   // Directly add an episodic memory (used by extract and by tests).
@@ -60,6 +90,7 @@ export class MemoryEngine {
         source: null, source_type: 'ambient', subject: 'world',
     });
     await this.d.storage.save(snap);
+    captureTelemetry(this.d, this.sessionId, { name: 'episodic_memory_added', properties: { importance: e.importance, tags_count: e.tags.length, has_image: !!e.imageUri } });
   }
 
   async retrieve(query: string): Promise<InjectionContext> {
@@ -89,6 +120,7 @@ export class MemoryEngine {
     for (const p of triggered) { p.lastTriggeredAt = now; p.strength += this.cfg.boost; }
 
     await this.d.storage.save(snap);
+    captureTelemetry(this.d, this.sessionId, { name: 'memory_retrieved', properties: { episodic_count: picked.length, prospective_triggered: triggered.length, pool_size: pool.length } });
     return {
       selfTier: snap.selfFacets,
       episodic: picked,
@@ -116,8 +148,10 @@ export class MemoryEngine {
     const snap = await this.d.storage.load();
     const idx = snap.messages.findIndex((m) => m.id === messageId);
     if (idx === -1) return;
+    const removedCount = snap.messages.length - idx;
     snap.messages = snap.messages.slice(0, idx);
     await this.d.storage.save(snap);
+    captureTelemetry(this.d, this.sessionId, { name: 'conversation_rewound', properties: { rewound_to_index: idx, messages_removed: removedCount } });
   }
 
   // Full conversational turn: store user msg → retrieve relevant memory →
@@ -125,6 +159,11 @@ export class MemoryEngine {
   // This is why a single thread never overflows: only retrieved memory + a short
   // tail is sent, never the full history.
   async *respond(userText: string, image?: { dataUrl: string; mime: string }): AsyncIterable<string> {
+    let respondStart: number | undefined;
+    if (this.d.telemetry) {
+      try { respondStart = this.d.clock.now(); } catch { /* fail-open */ }
+    }
+    captureTelemetry(this.d, this.sessionId, { name: 'respond_started', properties: { has_image: !!image } });
     await this.ingestUser(userText, image);
     const ctx = await this.retrieve(userText);
     const timeNote = `[Current time: ${new Date(this.d.clock.now()).toString()}]`;
@@ -136,11 +175,15 @@ export class MemoryEngine {
     }
     await this.ingestModel(full);
     await this.tick();
+    captureRespondCompleted(this.d, this.sessionId, respondStart, full.length, !!image);
   }
 
   async tick(): Promise<void> {
     const snap = await this.d.storage.load();
     const now = this.d.clock.now();
+    const episodicCountBefore = snap.episodic.length;
+    let crystallizedCount = 0;
+    const telemetryEvents: Omit<TelemetryEvent, 'sessionId'>[] = [];
 
     // Normalize 1A tiers persisted before this feature (whole-snapshot JSON has no migration).
     snap.persons ??= {};
@@ -177,7 +220,10 @@ export class MemoryEngine {
       const ex = await this.d.chat.extract(recent, pending);
       for (const id of ex.resolved ?? []) {
         const p = snap.prospective.find(q => q.id === id);
-        if (p && p.status === 'pending') p.status = 'resolved';
+        if (p && p.status === 'pending') {
+          p.status = 'resolved';
+          telemetryEvents.push({ name: 'intent_resolved', properties: { priority: p.priority } });
+        }
       }
       for (const e of ex.episodic) {
         // Provenance: who SAID it (source) + the kind of source (source_type from said_by).
@@ -224,6 +270,7 @@ export class MemoryEngine {
           contextClue: p.contextClue, createdAt: now,
           clueEmbedding, strength: p.priority / 5, lastTriggeredAt: -1,
         });
+        telemetryEvents.push({ name: 'intent_created', properties: { priority: p.priority } });
       }
     }
 
@@ -264,7 +311,11 @@ export class MemoryEngine {
         f.statement === statement ||
         (!!emb && !!f.embedding && cosineSimilarity(emb, f.embedding) >= this.cfg.selfDedupeSim));
       if (existing) { existing.strength += this.cfg.boost; existing.updatedAt = now; existing.embedding ??= emb; }
-      else snap.selfFacets.push({ id: uid('s'), statement, kind, strength: 1, updatedAt: now, embedding: emb });
+      else {
+        snap.selfFacets.push({ id: uid('s'), statement, kind, strength: 1, updatedAt: now, embedding: emb });
+        crystallizedCount++;
+        telemetryEvents.push({ name: 'memory_crystallized', properties: { kind, recurrence: ev.recurrence, avg_importance: ev.avgImportance, span_days: ev.spanDays } });
+      }
     }
 
     // Backfill embeddings on facets crystallized before this feature, then collapse any accumulated
@@ -277,7 +328,15 @@ export class MemoryEngine {
       .sort((a, b) => b.strength - a.strength)
       .slice(0, this.cfg.selfTierCap);
 
+    telemetryEvents.push({ name: 'tick_completed', properties: {
+      episodic_count: snap.episodic.length,
+      episodic_delta: snap.episodic.length - episodicCountBefore,
+      prospective_pending: snap.prospective.filter(p => p.status === 'pending').length,
+      self_facets_count: snap.selfFacets.length,
+      crystallized_count: crystallizedCount,
+    } });
     snap.lastTick = now;
     await this.d.storage.save(snap);
+    for (const event of telemetryEvents) captureTelemetry(this.d, this.sessionId, event);
   }
 }

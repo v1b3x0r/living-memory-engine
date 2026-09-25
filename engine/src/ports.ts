@@ -42,6 +42,17 @@ export interface ExtractResult {
   resolved?: string[]; // ids of previously-pending intents this exchange has addressed
 }
 
+export interface TelemetryEvent {
+  name: string;
+  sessionId: string;
+  properties: Record<string, string | number | boolean | null>;
+}
+
+/** Optional host-owned observability boundary. Implementations must be fail-open. */
+export interface TelemetryPort {
+  capture(event: TelemetryEvent): void | Promise<void>;
+}
+
 export interface ChatPort {
   stream(messages: Message[], systemPrompt: string, inject: string): AsyncIterable<string>;
   describeImage(dataUrl: string): Promise<string>;
