@@ -56,12 +56,18 @@ export class FileStorage implements StoragePort {
         throw new Error('Legacy hash embeddings have a different tokenizer identity. Re-create selected content in a new lexical Local; no automatic re-embedding.');
       if (process.env.LME_ADOPT_LEGACY !== '1')
         throw new Error('Legacy embedding identity is unknown. Read state first; use LME_ADOPT_LEGACY=1 only after confirming the original provider/model. No automatic re-embedding.');
-      const vectors = [...s.episodic, ...s.selfFacets, ...s.prospective,
-        ...Object.values(s.persons ?? {}).flatMap(p => p.episodic)]
-        .map((m: any) => m.embedding ?? m.clueEmbedding).filter(Boolean);
+      // Episodic vectors and pending intent clues are required for retrieval.
+      // Self-facet embeddings are optional in the engine's legacy contract.
+      const vectors = [
+        ...s.episodic.map(m => m.embedding),
+        ...Object.values(s.persons ?? {}).flatMap(p => p.episodic.map(m => m.embedding)),
+        ...s.prospective.filter(p => p.status === 'pending').map(p => p.clueEmbedding),
+        ...s.selfFacets.map(f => f.embedding).filter(v => v != null),
+        ...s.prospective.filter(p => p.status !== 'pending').map(p => p.clueEmbedding).filter(v => v != null),
+      ];
       if (vectors.some(v => !Array.isArray(v) || !v.length || v.some((n: unknown) => typeof n !== 'number' || !Number.isFinite(n))))
         throw new Error('Legacy store contains invalid embeddings; repair explicitly before adoption.');
-      const dims = new Set<number>(vectors.map(v => v.length));
+      const dims = new Set<number>(vectors.map(v => v!.length));
       if (dims.size > 1) throw new Error('Legacy store contains mixed dimensions; adoption refused.');
       this.identity.dimensions = dims.size ? [...dims][0] : null;
     }

@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { mkdtemp, readFile, writeFile, stat, mkdir } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
@@ -11,7 +13,7 @@ process.env.LME_CONFIG_ISOLATED = '1';
 const fact = content => ({ content, importance: 7, tags: [] });
 
 test('serialized recall/remember, identity and dimensions, private files', async () => {
-  const directory = await mkdtemp('/private/tmp/lm-runtime-');
+  const directory = await mkdtemp(join(tmpdir(), 'lm-runtime-'));
   let entered, release;
   const ready = new Promise(resolve => { entered = resolve; });
   let dimensions = 2;
@@ -48,7 +50,7 @@ test('serialized recall/remember, identity and dimensions, private files', async
 });
 
 test('cross-process lock refuses contention and releases after failure', async () => {
-  const directory = await mkdtemp('/private/tmp/lm-lock-');
+  const directory = await mkdtemp(join(tmpdir(), 'lm-lock-'));
   const path = `${directory}/brain.json`;
   await withStoreLock(path, async () => {
     const module = new URL('../dist/lock.js', import.meta.url).href;
@@ -63,7 +65,7 @@ test('cross-process lock refuses contention and releases after failure', async (
 });
 
 test('legacy adoption is explicit and preserves the pre-adoption backup', async () => {
-  const directory = await mkdtemp('/private/tmp/lm-legacy-');
+  const directory = await mkdtemp(join(tmpdir(), 'lm-legacy-'));
   const path = `${directory}/brain.json`;
   const original = { ...structuredClone(EMPTY_SNAPSHOT), episodic: [{ id: 'legacy', content: 'original', embedding: Array(256).fill(1), createdAt: 1, strength: 1, importance: 7 }] };
   await writeFile(path, JSON.stringify(original), { mode: 0o600 });
@@ -79,7 +81,7 @@ test('legacy adoption is explicit and preserves the pre-adoption backup', async 
 });
 
 test('corruption, stale files and unsafe permissions never become an empty store', async () => {
-  const directory = await mkdtemp('/private/tmp/lm-corrupt-');
+  const directory = await mkdtemp(join(tmpdir(), 'lm-corrupt-'));
   const path = `${directory}/brain.json`;
   await writeFile(path, '{bad', { mode: 0o600 });
   await assert.rejects(new FileStorage(path).load(), /corrupt/);
@@ -96,7 +98,7 @@ test('corruption, stale files and unsafe permissions never become an empty store
 });
 
 test('lexical mode handles Thai and rejects non-finite vectors', async () => {
-  const directory = await mkdtemp('/private/tmp/lm-thai-');
+  const directory = await mkdtemp(join(tmpdir(), 'lm-thai-'));
   const brain = makeBrain({ snapshotPath: `${directory}/brain.json`, mock: true });
   await brain.engine.addEpisodic(fact('เชียงใหม่'));
   const snapshot = JSON.parse(await readFile(brain.snapshotPath, 'utf8'));
@@ -108,7 +110,7 @@ test('lexical mode handles Thai and rejects non-finite vectors', async () => {
 
 test('handoffs are exact, ephemeral, private and separate from memory', async () => {
   const { Handoffs } = await import('../dist/handoff.js');
-  const directory = await mkdtemp('/private/tmp/lm-handoff-');
+  const directory = await mkdtemp(join(tmpdir(), 'lm-handoff-'));
   let now = 1000;
   const notes = new Handoffs(`${directory}/brain.json`, () => now);
   const text = 'next step\nเชียงใหม่\n  preserve spaces';
@@ -123,4 +125,27 @@ test('handoffs are exact, ephemeral, private and separate from memory', async ()
   assert.equal((await notes.list()).length, 0);
   assert.equal(await readFile(`${directory}/brain.json.handoffs.json`, 'utf8'), '[]');
   await assert.rejects(stat(`${directory}/brain.json`), /ENOENT/);
+});
+
+
+test('legacy adoption refuses missing retrieval vectors without changing files', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'lm-legacy-invalid-'));
+  const path = join(directory, 'brain.json');
+  const memory = { id: 'legacy', content: 'unembedded', embedding: null };
+  process.env.LME_ADOPT_LEGACY = '1';
+  try {
+    for (const partial of [
+      { episodic: [memory] },
+      { persons: { alice: { episodic: [memory] } } },
+      { prospective: [{ id: 'intent', status: 'pending', clueEmbedding: null }] },
+    ]) {
+      const original = JSON.stringify({ ...structuredClone(EMPTY_SNAPSHOT), ...partial });
+      await writeFile(path, original, { mode: 0o600 });
+      const identity = { mode: 'semantic', endpoint: 'https://example.com/v1', model: 'original', dimensions: null };
+      await assert.rejects(new FileStorage(path, identity).assertEmbedding(), /invalid embeddings/);
+      assert.equal(await readFile(path, 'utf8'), original);
+      assert.equal(identity.dimensions, null);
+      await assert.rejects(stat(path + '.bak'), /ENOENT/);
+    }
+  } finally { delete process.env.LME_ADOPT_LEGACY; }
 });
