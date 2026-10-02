@@ -1,0 +1,13 @@
+{
+  "name": "@nature-labs/lme-mcp",
+  "version": "0.1.3",
+  "description": "Compatibility entry point for @nature-labs/living-memory-mcp. Same local memory store and tools.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "engines": { "node": ">=20.12.0" },
+  "bin": { "lme-mcp": "server.mjs" },
+  "files": ["server.mjs", "README.md", "LICENSE", "NOTICE"],
+  "dependencies": { "@nature-labs/living-memory-mcp": "0.1.3" },
+  "repository": { "type": "git", "url": "git+https://github.com/v1b3x0r/living-memory-engine.git" },
+  "publishConfig": { "access": "public" }
+}

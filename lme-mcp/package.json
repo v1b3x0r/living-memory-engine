@@ -1,12 +1,13 @@
 {
-  "name": "@nature-labs/lme-mcp",
+  "name": "@nature-labs/living-memory-mcp",
   "mcpName": "to.viibe/living-memory",
-  "version": "0.1.2",
-  "description": "Living Memory MCP \u2014 a persistent memory store for coding agents, over stdio. Facts survive across sessions and processes; retrieval is semantic (MMR), not string matching. Pre-alpha.",
+  "version": "0.1.3",
+  "description": "Living Memory MCP — persistent local memory over stdio, with configured semantic embeddings or explicit offline lexical retrieval. Pre-alpha.",
   "license": "Apache-2.0",
   "author": "nature-labs",
   "type": "module",
   "bin": {
+    "living-memory-mcp": "dist/server.js",
     "lme-mcp": "dist/server.js"
   },
   "main": "dist/server.js",
@@ -48,12 +49,13 @@
     "test:embed-failure": "node test/embed-failure.mjs",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "npm run build && npm run smoke"
+    "prepublishOnly": "npm run build && npm run smoke",
+    "test": "npm run build && node --test test/runtime.mjs && npm run smoke && npm run test:embed-failure"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@modelcontextprotocol/sdk": "1.30.0",
     "@nature-labs/living-memory-engine": "file:vendor/nature-labs-living-memory-engine-0.0.0.tgz",
-    "zod": "^3.23.8"
+    "zod": "3.25.76"
   },
   "bundleDependencies": [
     "@nature-labs/living-memory-engine"

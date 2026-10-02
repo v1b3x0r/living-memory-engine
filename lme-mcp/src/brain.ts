@@ -10,7 +10,7 @@
 //   • mock  — no key (or LME_EMBED=mock) → deterministic local hash embedder, for offline testing.
 //             In mock mode retrieveMinSimilarity is relaxed to 0 (fake vectors aren't semantic),
 //             so the retrieval path (mmrSearch) still runs end-to-end without a provider.
-import { mkdirSync, existsSync } from 'node:fs';
+import { mkdirSync, existsSync, lstatSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { homedir } from 'node:os';
@@ -18,8 +18,9 @@ import {
   MemoryEngine, SeededRandom, randomK,
   type ChatPort, type EmbedPort, type EngineConfig, type SelfFacet,
 } from '@nature-labs/living-memory-engine';
-import { makeChatPort, makeEmbedPort } from '@nature-labs/living-memory-engine/provider';
-import { FileStorage } from './storage.js';
+import { makeEmbedPort } from '@nature-labs/living-memory-engine/provider';
+import { FileStorage, type EmbeddingIdentity } from './storage.js';
+import { withStoreLock } from './lock.js';
 
 const DASHSCOPE = 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1';
 
@@ -35,6 +36,7 @@ function defaultSnapshotPath(): string {
 //   2. ~/.living-memory/.env  — machine config beside the snapshot; outside any repo, so it cannot
 //                               be committed by accident. The recommended home for a real key.
 function loadDotEnvFiles(): void {
+  if (process.env.LME_CONFIG_ISOLATED === '1') return;
   const pkgRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
   for (const p of [join(pkgRoot, '.env'), join(homedir(), '.living-memory', '.env')])
     if (existsSync(p)) process.loadEnvFile(p);
@@ -42,11 +44,11 @@ function loadDotEnvFiles(): void {
 
 // Deterministic offline embedder: FNV-1a hash each token into a fixed-dim bag-of-words, L2-normalize.
 // Not semantic — proves the wiring (persist → embed → mmrSearch) without any API key.
-function mockEmbedPort(dim = 256): EmbedPort {
+function mockEmbedPort(dim = 256, legacy = false): EmbedPort {
   return {
     async embed(text: string): Promise<number[]> {
       const v = new Array<number>(dim).fill(0);
-      for (const tok of text.toLowerCase().match(/[a-z0-9]+/g) ?? []) {
+      for (const tok of text.toLowerCase().match(legacy ? /[a-z0-9]+/g : /[\p{L}\p{N}]+/gu) ?? []) {
         let h = 2166136261;
         for (let i = 0; i < tok.length; i++) { h ^= tok.charCodeAt(i); h = Math.imul(h, 16777619); }
         v[(h >>> 0) % dim] += 1;
@@ -88,30 +90,43 @@ const stubChat: ChatPort = {
 export interface BrainOpts { snapshotPath?: string; apiKey?: string; baseURL?: string; mock?: boolean; embedModel?: string; }
 
 export function makeBrain(opts: BrainOpts = {}) {
+  const [major, minor] = process.versions.node.split('.').map(Number);
+  if (major < 20 || (major === 20 && minor < 12)) throw new Error('Local MCP requires Node >=20.12.');
   loadDotEnvFiles(); // before any process.env read below
   const snapshotPath = opts.snapshotPath ?? defaultSnapshotPath();
   const apiKey = opts.apiKey ?? process.env.LME_API_KEY;
-  const mock = opts.mock ?? (process.env.LME_EMBED === 'mock' || !apiKey);
-  const baseURL = opts.baseURL ?? process.env.LME_BASE_URL ?? DASHSCOPE;
+  const mock = opts.mock ?? (['mock', 'lexical'].includes(process.env.LME_EMBED ?? '') || (!apiKey && process.env.LME_EMBED !== 'real'));
+  if (!mock && !apiKey) throw new Error('Semantic embedding requires LME_API_KEY; use a local placeholder for an unauthenticated local server, or explicitly select LME_EMBED=lexical.');
+  const baseURL = (opts.baseURL ?? process.env.LME_BASE_URL ?? DASHSCOPE).replace(/\/+$/, '');
   // Providers disagree about the model name for the same capability (DashScope `text-embedding-v4`,
   // Ollama `embeddinggemma`, OpenAI `text-embedding-3-small`), and some — llama.cpp — ignore the
   // field entirely and embed with whatever is loaded. Repointing LME_BASE_URL alone is therefore not
   // enough for the providers that validate the name, so the name is configurable too.
   const embedModel = opts.embedModel ?? process.env.LME_EMBED_MODEL ?? 'text-embedding-v4';
 
-  mkdirSync(dirname(snapshotPath), { recursive: true });
+  mkdirSync(dirname(snapshotPath), { recursive: true, mode: 0o700 });
+  const directory = lstatSync(dirname(snapshotPath));
+  if (!directory.isDirectory() || (directory.mode & 0o077))
+    throw new Error('Local storage directory must be a real private directory (0700).');
+  const endpoint = new URL(baseURL);
+  if (!['https:', 'http:'].includes(endpoint.protocol) || endpoint.username || endpoint.password || endpoint.search || endpoint.hash)
+    throw new Error('Embedding endpoint must be an HTTP(S) URL without credentials, query or fragment.');
+  const legacyHash = mock && (process.env.LME_EMBED === 'mock' || (opts.mock === undefined && process.env.LME_EMBED !== 'lexical'));
+  const identity: EmbeddingIdentity = { mode: mock ? 'lexical' : 'semantic',
+    endpoint: mock ? null : endpoint.href.replace(/\/$/, ''),
+    model: mock ? (legacyHash ? 'ascii-fnv1a-256-v0' : 'unicode-fnv1a-256-v1') : embedModel, dimensions: mock ? 256 : null };
+  const storage = new FileStorage(snapshotPath, identity);
 
-  const embed: EmbedPort = mock
-    ? mockEmbedPort()
-    : strictEmbedPort(makeEmbedPort({ baseURL, apiKey: apiKey!, model: embedModel }, fetch), baseURL);
-  const chat: ChatPort = mock
-    ? stubChat
-    : makeChatPort({ baseURL, apiKey: apiKey!, model: 'qwen3.7-plus' }, fetch);
+  const provider: EmbedPort = mock
+    ? mockEmbedPort(256, legacyHash)
+    : strictEmbedPort(makeEmbedPort({ baseURL, apiKey: apiKey!, model: embedModel }, (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(20000) })), baseURL);
+  const embed: EmbedPort = { async embed(text) { return storage.checkVector(await provider.embed(text)); } };
+  const chat = stubChat;
 
-  const config: Partial<EngineConfig> = mock ? { retrieveMinSimilarity: 0 } : {};
+  const config: Partial<EngineConfig> = mock ? { retrieveMinSimilarity: legacyHash ? 0 : 0.001 } : {};
 
-  const engine = new MemoryEngine({
-    storage: new FileStorage(snapshotPath),
+  const rawEngine = new MemoryEngine({
+    storage,
     embed, chat,
     clock: { now: () => Date.now() },
     random: new SeededRandom(1337),
@@ -120,7 +135,17 @@ export function makeBrain(opts: BrainOpts = {}) {
   });
 
   // One throwaway embed, so callers can verify the provider is usable without touching the snapshot.
-  const embedProbe = () => embed.embed('probe').then(() => undefined);
+  const run = <T>(operation: () => Promise<T>) => withStoreLock(snapshotPath, operation);
+  const semantic = <T>(operation: () => Promise<T>) => run(async () => {
+    await storage.assertEmbedding();
+    return operation();
+  });
+  const engine = {
+    addEpisodic: (...args: Parameters<MemoryEngine['addEpisodic']>) => semantic(() => rawEngine.addEpisodic(...args)),
+    retrieve: (...args: Parameters<MemoryEngine['retrieve']>) => semantic(() => rawEngine.retrieve(...args)),
+  };
+  // A generic probe sends no stored content and never rewrites the snapshot.
+  const embedProbe = () => semantic(async () => { await embed.embed('probe'); return { ...identity }; });
 
-  return { engine, snapshotPath, mock, embedProbe, embedModel, baseURL };
+  return { engine, snapshotPath, mock, embedProbe, embedModel, baseURL, identity, run };
 }
