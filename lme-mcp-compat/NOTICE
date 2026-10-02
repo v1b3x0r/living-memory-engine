@@ -1,0 +1,38 @@
+@nature-labs/lme-mcp — Living Memory MCP
+Copyright 2026 nature-labs
+
+This product includes software developed by nature-labs.
+Licensed under the Apache License, Version 2.0 (the "License").
+You may obtain a copy of the License in the LICENSE file distributed with this
+package, or at http://www.apache.org/licenses/LICENSE-2.0
+
+--------------------------------------------------------------------------------
+BUNDLED COMPONENTS
+--------------------------------------------------------------------------------
+
+This distribution bundles the following component inside the published package
+(see the `bundleDependencies` field in package.json):
+
+  @nature-labs/living-memory-engine  (version 0.0.0)
+    Copyright 2026 nature-labs
+    Licensed under the Apache License, Version 2.0.
+    Source: https://github.com/v1b3x0r/living-memory-engine (engine/)
+    Distributed here as prebuilt JavaScript under vendor/, unmodified.
+    The Apache-2.0 License text in the accompanying LICENSE file applies to
+    this bundled component as well.
+
+--------------------------------------------------------------------------------
+THIRD-PARTY DEPENDENCIES
+--------------------------------------------------------------------------------
+
+The following third-party packages are declared as runtime dependencies and are
+installed by npm from the public registry (they are NOT bundled in this tarball).
+Each remains under its own license; the full license texts are distributed with
+those packages in your node_modules directory.
+
+  @modelcontextprotocol/sdk  ^1.30.0   MIT
+  zod                        ^3.23.8   MIT
+
+The resolved dependency tree for this package consists of MIT, ISC, Apache-2.0,
+BSD-3-Clause and BSD-2-Clause licensed components. No copyleft (GPL/AGPL/SSPL/
+BUSL) licensed code is included or required.

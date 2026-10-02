@@ -6,7 +6,8 @@
 // Real mode is forced offline by pointing LME_BASE_URL at the discard port (connection refused).
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import { readFileSync, existsSync, rmSync } from 'node:fs';
+import { readFileSync, existsSync, rmSync, mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -18,8 +19,9 @@ const launch = existsSync(built)
   ? { command: process.execPath, args: [built] }
   : { command: 'npx', args: ['tsx', 'src/server.ts'] };
 
-const SNAPSHOT = '/tmp/lme-embedfail/brain.json';
-rmSync('/tmp/lme-embedfail', { recursive: true, force: true });
+const directory = mkdtempSync(join(tmpdir(), 'lme-embedfail-'));
+const SNAPSHOT = join(directory, 'brain.json');
+process.on('exit', () => rmSync(directory, { recursive: true, force: true }));
 
 const FACT = 'This must never be stored without a usable embedding';
 const fail = (m) => { console.error('❌ FAIL:', m); process.exit(1); };

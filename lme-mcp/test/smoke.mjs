@@ -3,7 +3,8 @@
 // Also exercises the full 4-tool set: memory_state (sees it) and memory_forget (removes it).
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import { rmSync, existsSync } from 'node:fs';
+import { rmSync, mkdtempSync, existsSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -15,8 +16,9 @@ const built = join(root, 'dist', 'server.js');
 const launch = existsSync(built)
   ? { command: process.execPath, args: [built] }
   : { command: 'npx', args: ['tsx', 'src/server.ts'] };
-const SNAPSHOT = '/tmp/lme-smoke/brain.json';
-rmSync('/tmp/lme-smoke', { recursive: true, force: true });
+const directory = mkdtempSync(join(tmpdir(), 'lme-smoke-'));
+const SNAPSHOT = join(directory, 'brain.json');
+process.on('exit', () => rmSync(directory, { recursive: true, force: true }));
 
 const FACT = 'The founder prefers TypeScript over JavaScript for new projects';
 const fail = (m) => { console.error('❌ FAIL:', m); process.exit(1); };

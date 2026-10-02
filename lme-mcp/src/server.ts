@@ -7,9 +7,10 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import type { Snapshot, EpisodicMemory } from '@nature-labs/living-memory-engine';
 import { makeBrain } from './brain.js';
-import { FileStorage } from './storage.js';
+import { FileStorage, hasStoredMemories } from './storage.js';
+import { Handoffs } from './handoff.js';
 
-const { engine, snapshotPath, mock, embedProbe, embedModel, baseURL } = makeBrain();
+const { engine, snapshotPath, mock, embedProbe, embedModel, baseURL, identity, run } = makeBrain();
 const store = new FileStorage(snapshotPath); // for state/forget (read/surgery outside the engine)
 
 // `instructions` rides the initialize response into the client's system prompt, so it reaches the agent
@@ -20,7 +21,7 @@ const store = new FileStorage(snapshotPath); // for state/forget (read/surgery o
 // NOTE (A46): that trial is n=1 on one client. This text is the cheap, spec-sanctioned move regardless —
 // but "agents don't reach for memory unless the server declares instructions" is NOT yet established.
 const server = new McpServer(
-  { name: 'living-memory', version: '0.1.1' },
+  { name: 'living-memory', version: '0.1.3' },
   {
     instructions: [
       'living-memory is the ONLY place holding what a repository cannot: why a decision was made, what',
@@ -64,7 +65,7 @@ server.registerTool(
   },
   async ({ content, importance, tags }) => {
     await engine.addEpisodic({ content, importance: importance ?? 7, tags: tags ?? [] });
-    return { content: [{ type: 'text', text: `🧠 remembered: ${content}` }] };
+    return { content: [{ type: 'text', text: `🧠 remembered: ${content}` }], structuredContent: { remembered: true, content } };
   },
 );
 
@@ -85,7 +86,7 @@ server.registerTool(
     const ctx = await engine.retrieve(query);
     const lines = ctx.episodic.map((e) => `• ${e.content}`);
     const text = lines.length ? lines.join('\n') : '(no relevant memories yet)';
-    return { content: [{ type: 'text', text }] };
+    return { content: [{ type: 'text', text }], structuredContent: { memories: ctx.episodic.map(e => ({ id: e.id, content: e.content })), text } };
   },
 );
 
@@ -101,7 +102,7 @@ server.registerTool(
       "engine's consolidation pass, so crystallization never happens.)",
     inputSchema: {},
   },
-  async () => {
+  async () => run(async () => {
     const s: Snapshot = await store.load();
     const recent = [...s.episodic]
       .sort((a, b) => b.createdAt - a.createdAt)
@@ -113,8 +114,8 @@ server.registerTool(
       recent.length ? `\nrecent memories:\n${recent.join('\n')}` : '\n(no memories yet)',
       facets.length ? `\ncrystallized traits:\n${facets.join('\n')}` : '',
     ].join('\n');
-    return { content: [{ type: 'text', text }] };
-  },
+    return { content: [{ type: 'text', text }], structuredContent: { episodic: s.episodic.length, selfFacets: s.selfFacets.length, prospective: s.prospective.length, text } };
+  }),
 );
 
 // --- memory_forget: correct the record. Delete memories matching a query (engine has no delete → snapshot surgery). ---
@@ -131,7 +132,8 @@ server.registerTool(
       query: z.string().describe('Text to match against memories to delete'),
     },
   },
-  async ({ query }) => {
+  async ({ query }) => run(async () => {
+    if (!query.trim()) throw new Error('Forget query must not be empty.');
     const s: Snapshot = await store.load();
     const q = query.toLowerCase();
     const hit = (e: EpisodicMemory) => e.content.toLowerCase().includes(q);
@@ -142,21 +144,57 @@ server.registerTool(
     const text = removed.length
       ? `🗑️ forgot ${removed.length}:\n${removed.map((c) => `• ${c}`).join('\n')}`
       : `(nothing matched "${query}")`;
-    return { content: [{ type: 'text', text }] };
-  },
+    return { content: [{ type: 'text', text }], structuredContent: { removed: removed.length, text } };
+  }),
 );
+
+const handoffs = new Handoffs(snapshotPath);
+server.registerTool('handoff_post', {
+  title: 'Leave a local handoff',
+  description: 'Leave raw ephemeral context for the next process/agent. Never embedded or uploaded. Default 24 hours; maximum 72. Expired notes are removed on the next handoff operation.',
+  inputSchema: { text: z.string().min(1), ttl_hours: z.number().positive().max(72).optional(),
+    from: z.string().max(120).optional(), label: z.string().max(120).optional() },
+}, async ({ text, ttl_hours, from, label }) => run(async () => {
+  const note = await handoffs.post(text, ttl_hours, from, label);
+  return { content: [{ type: 'text', text: `Handoff saved: ${note.id} (expires ${note.expiresAt})` }],
+    structuredContent: { id: note.id, createdAt: note.createdAt, expiresAt: note.expiresAt } };
+}));
+server.registerTool('handoff_read', {
+  title: 'Resume a local handoff', description: 'Read the latest live raw note, or a specific ID. Expired notes are unavailable.',
+  inputSchema: { id: z.string().optional() },
+}, async ({ id }) => run(async () => {
+  const note = await handoffs.get(id);
+  return { content: [{ type: 'text', text: note?.text ?? '(no live handoff)' }],
+    structuredContent: note ? { ...note } : { id: null, text: null } };
+}));
+server.registerTool('handoff_list', {
+  title: 'List local handoffs', description: 'List live note metadata without the raw text. No provider or network request.', inputSchema: {},
+}, async () => run(async () => {
+  const notes = (await handoffs.list()).map(({ text, ...note }) => ({ ...note, bytes: Buffer.byteLength(text) }));
+  return { content: [{ type: 'text', text: JSON.stringify(notes) }], structuredContent: { count: notes.length, notes } };
+}));
+
+server.registerTool('local_info', {
+  title: 'Local runtime information',
+  description: 'Inspect local storage and embedding boundaries. No provider request unless probe=true; an explicit probe sends only a generic string and may incur provider charges.',
+  inputSchema: { probe: z.boolean().optional() },
+}, async ({ probe }) => {
+  const embedding = probe ? await embedProbe() : await run(async () => {
+    await store.assertUsable();
+    const snapshot = await store.load();
+    return { ...identity, dimensions: hasStoredMemories(snapshot) ? snapshot.localEmbedding?.dimensions ?? (mock ? 256 : null) : (mock ? 256 : null),
+      storedIdentity: snapshot.localEmbedding ?? null,
+      compatible: !hasStoredMemories(snapshot) || (!!snapshot.localEmbedding && (snapshot.localEmbedding.mode === identity.mode && snapshot.localEmbedding.endpoint === identity.endpoint && snapshot.localEmbedding.model === identity.model)),
+      legacy: !snapshot.localEmbedding && hasStoredMemories(snapshot) };
+  });
+  const info = { version: '0.1.3', configuration: 'local', storage: snapshotPath, embedding,
+    network: mock ? 'none' : ['localhost', '127.0.0.1', '[::1]'].includes(new URL(baseURL).hostname) ? 'loopback' : 'external',
+    inference: 'not_used', door: null, probe: !!probe };
+  return { content: [{ type: 'text', text: JSON.stringify(info) }], structuredContent: info };
+});
 
 await server.connect(new StdioServerTransport());
 // The embedder line is the ONLY signal that separates a working install from a silently-mock one
 // (an empty LME_API_KEY selects mock without erroring), so name the model and host, not just "real".
-const embedLabel = mock ? 'MOCK' : `${embedModel} @ ${new URL(baseURL).host}`;
-console.error(`[living-memory] up · snapshot=${snapshotPath} · embed=${embedLabel} · tools=4`);
-
-// Probe the embedder once so an unusable key surfaces here, in the client's log, rather than on the
-// user's first memory_add. Deliberately AFTER connect and un-awaited: the handshake must not wait on
-// a network round-trip (a slow provider would otherwise look like a startup timeout).
-if (!mock)
-  embedProbe().then(
-    () => console.error('[living-memory] embed check: ok'),
-    (e) => console.error(`[living-memory] ⚠️  EMBED UNUSABLE — memory_add/search will fail: ${e.message}`),
-  );
+const embedLabel = mock ? 'LEXICAL (non-semantic)' : `${embedModel} @ ${new URL(baseURL).host}`;
+console.error(`[living-memory] up · snapshot=${snapshotPath} · embed=${embedLabel} · tools=8`);
