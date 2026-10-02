@@ -12,6 +12,11 @@ export const EMPTY_SNAPSHOT: Snapshot = {
   messages: [], episodic: [], selfFacets: [], prospective: [], lastTick: 0,
 };
 
+export function hasStoredMemories(s: Snapshot): boolean {
+  return s.episodic.length > 0 || s.selfFacets.length > 0 || s.prospective.length > 0
+    || Object.values(s.persons ?? {}).some(p => p.episodic.length > 0);
+}
+
 async function readPrivate(path: string): Promise<LocalSnapshot | null> {
   let info;
   try { info = await lstat(path); }
@@ -51,7 +56,8 @@ export class FileStorage implements StoragePort {
     await this.assertUsable();
     const s = await this.load();
     const saved = s.localEmbedding;
-    if (!saved && (s.episodic.length || s.selfFacets.length || s.prospective.length || Object.values(s.persons ?? {}).some(p => p.episodic.length))) {
+    if (!hasStoredMemories(s)) { this.identity.dimensions = this.identity.mode === 'lexical' ? 256 : null; return; }
+    if (!saved) {
       if (this.identity.model === 'unicode-fnv1a-256-v1')
         throw new Error('Legacy hash embeddings have a different tokenizer identity. Re-create selected content in a new lexical Local; no automatic re-embedding.');
       if (process.env.LME_ADOPT_LEGACY !== '1')

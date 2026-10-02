@@ -7,7 +7,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import type { Snapshot, EpisodicMemory } from '@nature-labs/living-memory-engine';
 import { makeBrain } from './brain.js';
-import { FileStorage } from './storage.js';
+import { FileStorage, hasStoredMemories } from './storage.js';
 import { Handoffs } from './handoff.js';
 
 const { engine, snapshotPath, mock, embedProbe, embedModel, baseURL, identity, run } = makeBrain();
@@ -182,10 +182,10 @@ server.registerTool('local_info', {
   const embedding = probe ? await embedProbe() : await run(async () => {
     await store.assertUsable();
     const snapshot = await store.load();
-    return { ...identity, dimensions: snapshot.localEmbedding?.dimensions ?? (mock ? 256 : null),
+    return { ...identity, dimensions: hasStoredMemories(snapshot) ? snapshot.localEmbedding?.dimensions ?? (mock ? 256 : null) : (mock ? 256 : null),
       storedIdentity: snapshot.localEmbedding ?? null,
-      compatible: !snapshot.localEmbedding || (snapshot.localEmbedding.mode === identity.mode && snapshot.localEmbedding.endpoint === identity.endpoint && snapshot.localEmbedding.model === identity.model),
-      legacy: !snapshot.localEmbedding && (snapshot.episodic.length > 0 || snapshot.selfFacets.length > 0 || snapshot.prospective.length > 0) };
+      compatible: !hasStoredMemories(snapshot) || (!!snapshot.localEmbedding && (snapshot.localEmbedding.mode === identity.mode && snapshot.localEmbedding.endpoint === identity.endpoint && snapshot.localEmbedding.model === identity.model)),
+      legacy: !snapshot.localEmbedding && hasStoredMemories(snapshot) };
   });
   const info = { version: '0.1.3', configuration: 'local', storage: snapshotPath, embedding,
     network: mock ? 'none' : ['localhost', '127.0.0.1', '[::1]'].includes(new URL(baseURL).hostname) ? 'loopback' : 'external',

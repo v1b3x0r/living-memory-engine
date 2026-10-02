@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { mkdtemp, readFile, writeFile, stat, mkdir } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
@@ -148,4 +149,29 @@ test('legacy adoption refuses missing retrieval vectors without changing files',
       await assert.rejects(stat(path + '.bak'), /ENOENT/);
     }
   } finally { delete process.env.LME_ADOPT_LEGACY; }
+});
+
+
+test('empty snapshots can change identity; person-only legacy diagnostics fail closed', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'lm-info-'));
+  const path = join(directory, 'brain.json');
+  const empty = { ...structuredClone(EMPTY_SNAPSHOT), localEmbedding: {mode:'semantic',model:'old',endpoint:'https://old.example/v1',dimensions:2560} };
+  await writeFile(path, JSON.stringify(empty), {mode:0o600});
+  const brain = makeBrain({snapshotPath:path,mock:true});
+  await brain.engine.addEpisodic(fact('new lexical memory'));
+  assert.equal(JSON.parse(await readFile(path,'utf8')).localEmbedding.model,'unicode-fnv1a-256-v1');
+  const legacy = { ...structuredClone(EMPTY_SNAPSHOT), persons:{alice:{episodic:[{id:'person',content:'remember me',embedding:[1,0]}]}} };
+  await writeFile(path, JSON.stringify(legacy), {mode:0o600});
+  const {Client} = await import('@modelcontextprotocol/sdk/client/index.js');
+  const {StdioClientTransport} = await import('@modelcontextprotocol/sdk/client/stdio.js');
+  const client = new Client({name:'legacy-info',version:'1'});
+  const transport = new StdioClientTransport({command:process.execPath,args:[fileURLToPath(new URL('../dist/server.js',import.meta.url))],env:{LME_CONFIG_ISOLATED:'1',LME_EMBED:'lexical',LME_SNAPSHOT:path}});
+  try {
+    await client.connect(transport);
+    const result = await client.callTool({name:'local_info',arguments:{}});
+    assert.equal(result.structuredContent.embedding.legacy,true);
+    assert.equal(result.structuredContent.embedding.compatible,false);
+    const search = await client.callTool({name:'memory_search',arguments:{query:'remember'}});
+    assert.equal(search.isError,true);
+  } finally {await client.close();}
 });
